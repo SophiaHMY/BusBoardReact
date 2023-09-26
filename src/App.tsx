@@ -3,9 +3,9 @@ import './App.css';
 import {useState} from 'react';
 import {bus} from "./bus";
 
-
 function StopPointForm() {
     const [buses, setBuses] = useState<bus[]>([]);
+    const [stopCode, setStopCode] = useState("");
 
     function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -36,19 +36,32 @@ function StopPointForm() {
     }
 
     async function getBusesAtStop(stopCode: string) {
-
-            fetch('https://api.tfl.gov.uk/StopPoint/' + stopCode + '/Arrivals')
-                .then(response => response.json())
-                .then(data => {
-                    let incomingBuses: { destination: string, arrivalTime: string }[] = []
-                        data.forEach((bus: { destinationName: string, expectedArrival: string }) => {
-                            incomingBuses.push({destination: bus.destinationName, arrivalTime: bus.expectedArrival});
+        setStopCode(stopCode);
+        fetch('https://api.tfl.gov.uk/StopPoint/' + stopCode + '/Arrivals')
+            .then(response => response.json())
+            .then(data => {
+                    let incomingBuses: bus[] = []
+                    data.forEach((bus: { destinationName: string, expectedArrival: string, timeToStation: number }) => {
+                        incomingBuses.push({
+                            destination: bus.destinationName,
+                            arrivalTime: bus.expectedArrival,
+                            timeToStation: bus.timeToStation
                         });
+                    });
+                    incomingBuses.sort(function (a, b) {
+                        return (a.timeToStation) - (b.timeToStation);
+                    });
                     setBuses([...incomingBuses])
-                    }
-                )
-                .catch(error => console.error(error));
-           }
+                }
+            )
+            .catch(error => console.error(error));
+    }
+
+    setInterval(function () {
+        if (stopCode) {
+            getBusesAtStop(stopCode)
+        }
+    }, 30000);
 
     return (
         <>
@@ -63,9 +76,10 @@ function StopPointForm() {
             </form>
             <div>
                 {buses.map(bus =>
-                    <h3>
-                        {bus.arrivalTime} {bus.destination}
-                    </h3>
+                    <section>
+                        <h3>{bus.arrivalTime}</h3>
+                        <p>{bus.destination}</p>
+                    </section>
                 )}
 
             </div>
@@ -73,11 +87,10 @@ function StopPointForm() {
     )
 }
 
-
 function App() {
     return (
         <div className="App">
-            <h1> Bus Board</h1>
+            <h1>Bus Board</h1>
             <StopPointForm/>
         </div>
     );
