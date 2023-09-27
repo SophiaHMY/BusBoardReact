@@ -2,6 +2,8 @@ import React, {useEffect} from 'react';
 import './App.css';
 import {useState} from 'react';
 import {bus} from "./bus";
+import BasicTable, {createRows} from "./Table";
+import {constants} from "./constants";
 
 function StopPointForm() {
     const [buses, setBuses] = useState<bus[]>([]);
@@ -17,16 +19,16 @@ function StopPointForm() {
     }
 
     async function lookupPostcode(postcode: string) {
-        await fetch('https://api.postcodes.io/postcodes/' + postcode)
+        await fetch(constants.postcodeApi + postcode)
             .then(response => response.json())
             .then(json => getNearestBusStops(json.result["latitude"], json.result["longitude"]))
     }
 
     async function getNearestBusStops(lat: string, lon: string) {
-        fetch('https://api.tfl.gov.uk/StopPoint/?' + new URLSearchParams({
+        fetch(constants.stopPointApi + "?" + new URLSearchParams({
             lat: lat,
             lon: lon,
-            stopTypes: 'NaptanPublicBusCoachTram',
+            stopTypes: constants.stopTypes,
         }))
             .then(response => response.json())
             .then(data => {
@@ -37,21 +39,28 @@ function StopPointForm() {
 
     async function getBusesAtStop(stopCode: string) {
         setStopCode(stopCode);
-        fetch('https://api.tfl.gov.uk/StopPoint/' + stopCode + '/Arrivals')
+        fetch(constants.stopPointApi + stopCode + '/Arrivals')
             .then(response => response.json())
             .then(data => {
                     let incomingBuses: bus[] = []
-                    data.forEach((bus: { destinationName: string, expectedArrival: string, timeToStation: number }) => {
+                    data.forEach((bus: {
+                        destinationName: string,
+                        expectedArrival: string,
+                        timeToStation: number,
+                        lineId: string
+                    }) => {
                         incomingBuses.push({
                             destination: bus.destinationName,
                             arrivalTime: bus.expectedArrival,
-                            timeToStation: bus.timeToStation
+                            timeToStation: bus.timeToStation,
+                            busNumber: bus.lineId,
                         });
                     });
                     incomingBuses.sort(function (a, b) {
                         return (a.timeToStation) - (b.timeToStation);
                     });
                     setBuses([...incomingBuses])
+                    createRows(incomingBuses)
                 }
             )
             .catch(error => console.error(error));
@@ -74,14 +83,8 @@ function StopPointForm() {
 
                 <button type="submit">Submit form</button>
             </form>
-            <div>
-                {buses.map(bus =>
-                    <section>
-                        <h3>{bus.arrivalTime}</h3>
-                        <p>{bus.destination}</p>
-                    </section>
-                )}
-
+            <div style={{display: 'flex', justifyContent: 'center'}}>
+                <BasicTable/>
             </div>
         </>
     )
